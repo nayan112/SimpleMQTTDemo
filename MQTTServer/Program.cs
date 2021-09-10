@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Text;
+using System.Text.Json;
+using System.Threading.Tasks;
 using MQTTnet;
 using MQTTnet.Server;
 using Serilog;
@@ -19,15 +21,31 @@ namespace MQTTServer
                                                  // port used will be 707
                                                  .WithDefaultEndpointPort(707)
                                                  // handler for new connections
-                                                 .WithConnectionValidator(OnNewConnection)
+                                                 .WithConnectionValidator(OnNewConnection);
                                                  // handler for new messages
-                                                 .WithApplicationMessageInterceptor(OnNewMessage);
+                                                 //.WithApplicationMessageInterceptor(OnNewMessage);
             // creates a new mqtt server     
             IMqttServer mqttServer = new MqttFactory().CreateMqttServer();
 
             // start the server with options  
             mqttServer.StartAsync(options.Build()).GetAwaiter().GetResult();
-
+            // Send a new message to the broker every second
+            do
+            {
+                Task.Delay(1000).GetAwaiter().GetResult();
+                Console.WriteLine("");
+                Console.WriteLine("");
+                Console.WriteLine("Select client Id to publish to: 1. Client 1, 2. Cleint 2");
+                var val = Console.ReadLine();
+                if (val != "1" && val != "2")
+                    Console.WriteLine("Invalid Input!");
+                else
+                {
+                    string json = JsonSerializer.Serialize(new { message = "Hi :)", sent = DateTimeOffset.UtcNow });
+                    mqttServer.PublishAsync($"client{val}/topic/json", json);
+                    
+                }
+            } while (true);
             Console.ReadLine();
         }
         public static void OnNewConnection(MqttConnectionValidatorContext context)

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using MQTTnet;
@@ -6,7 +7,6 @@ using MQTTnet.Client.Connecting;
 using MQTTnet.Client.Disconnecting;
 using MQTTnet.Client.Options;
 using MQTTnet.Extensions.ManagedClient;
-using Serilog;
 
 namespace Client2
 {
@@ -16,7 +16,7 @@ namespace Client2
         {
             // Creates a new client
             MqttClientOptionsBuilder builder = new MqttClientOptionsBuilder()
-                                                    .WithClientId("Dev.To")
+                                                    .WithClientId("Client2")
                                                     .WithTcpServer("localhost", 707);
 
             // Create client options objects
@@ -32,18 +32,20 @@ namespace Client2
             _mqttClient.ConnectedHandler = new MqttClientConnectedHandlerDelegate(OnConnected);
             _mqttClient.DisconnectedHandler = new MqttClientDisconnectedHandlerDelegate(OnDisconnected);
             _mqttClient.ConnectingFailedHandler = new ConnectingFailedHandlerDelegate(OnConnectingFailed);
-
+            // Subscribe to a topic
+            _mqttClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic("client2/topic/json").Build());
             // Starts a connection with the Broker
             _mqttClient.StartAsync(options).GetAwaiter().GetResult();
-
-            // Send a new message to the broker every second
-            while (true)
+            _mqttClient.UseApplicationMessageReceivedHandler(e =>
             {
-                string json = JsonSerializer.Serialize(new { message = "Heyo :)", sent = DateTimeOffset.UtcNow });
-                _mqttClient.PublishAsync("dev.to/topic/json", json);
-
-                Task.Delay(10000).GetAwaiter().GetResult();
-            }
+                Console.WriteLine("### RECEIVED APPLICATION MESSAGE ###");
+                Console.WriteLine($"+ Topic = {e.ApplicationMessage.Topic}");
+                Console.WriteLine($"+ Payload = {Encoding.UTF8.GetString(e.ApplicationMessage.Payload)}");
+                Console.WriteLine($"+ QoS = {e.ApplicationMessage.QualityOfServiceLevel}");
+                Console.WriteLine($"+ Retain = {e.ApplicationMessage.Retain}");
+                Console.WriteLine();
+            });
+            Console.ReadLine();
         }
         public static void OnConnected(MqttClientConnectedEventArgs obj)
         {
